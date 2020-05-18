@@ -16,8 +16,11 @@ var (
 
 func init() {
 	fmt.Printf("PythonScriptExecutor")
-	pythonScriptExecutorEngine = "/usr/bin/env python"
-	//pythonScriptExecutorEngineArgs = []string{}
+	pythonScriptExecutorEngine = "/usr/bin/env"
+	pythonScriptExecutorEngineArgs = []string{
+		"python",
+		"-c",
+	}
 }
 
 func (PythonScriptExecutor) Engine() string {
@@ -25,7 +28,7 @@ func (PythonScriptExecutor) Engine() string {
 }
 
 func (PythonScriptExecutor) Args() []string {
-	return bashScriptExecutorEngineArgs
+	return pythonScriptExecutorEngineArgs
 }
 
 func (executor PythonScriptExecutor) Execute(scriptCmd ScriptCommand) error {
