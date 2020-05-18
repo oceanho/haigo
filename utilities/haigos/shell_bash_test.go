@@ -15,7 +15,7 @@ func TestBashScriptExecutor_Execute(t *testing.T) {
 	bash := new(BashScriptExecutor)
 	cmdLsRootDir := ScriptCommand{
 		RunAs: "root",
-		Cmd:   "lsa",
+		Cmd:   "ls",
 		Args: []string{
 			"/",
 		},

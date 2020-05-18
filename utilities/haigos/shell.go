@@ -2,12 +2,27 @@ package haigos
 
 import (
 	"fmt"
+	"github.com/oceanho/haigo"
 	"io"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
 )
+
+var debugMode = false
+
+func init() {
+	if haigo.IsDebugMode() {
+		debugMode = true
+	} else {
+		isDebug := os.Getenv("haigo_utilities_haigos_debug")
+		if isDebug != "" {
+			debugMode = true
+		}
+	}
+}
 
 type ScriptExecutor interface {
 	Engine() string
@@ -30,40 +45,38 @@ func invokerTimeout(executor ScriptExecutor, scriptCmd ScriptCommand, duration t
 }
 
 func invoker(executor ScriptExecutor, scriptCmd ScriptCommand) error {
-	var cmdArgs []string
-	argLen := len(executor.Args())
-	if argLen != 0 {
-		cmdArgs = make([]string, argLen)
-		copy(cmdArgs, executor.Args())
-		cmdArgs = append(cmdArgs, scriptCmd.Cmd)
-		for _, v := range scriptCmd.Args {
-			cmdArgs = append(cmdArgs, v)
-		}
-	} else {
-		cmdArgs = make([]string, len(scriptCmd.Args))
-		cmdArgs = append(cmdArgs, scriptCmd.Cmd)
-		copy(cmdArgs, executor.Args())
+	var args = make([]string,0)
+	for _, v := range executor.Args() {
+		args = append(args, v)
 	}
+	args = append(args,fmt.Sprintf("%s %s",
+		scriptCmd.Cmd,strings.Join(scriptCmd.Args," ")))
 	cn := executor.Engine()
-	cmd := exec.Command(cn, cmdArgs...)
+	cmd := exec.Command(cn, args...)
+	if debugMode {
+		fmt.Printf("invoker command\n")
+		fmt.Printf("Cmd: %s\n", cn)
+		fmt.Printf("Args: %s\n", strings.Join(args, " "))
+		fmt.Printf("WorkDir: %s\n", scriptCmd.WorkDir)
+	}
 	if scriptCmd.WorkDir != "" {
 		cmd.Dir = scriptCmd.WorkDir
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		fmt.Printf("Bind StdoutPipe fail, cmd(%s),args (%s),err %v", cn, strings.Join(cmdArgs, " "), err.Error())
+		fmt.Printf("Bind StdoutPipe fail, cmd(%s),args (%s),err %v", cn, strings.Join(args, " "), err.Error())
 		return err
 	}
 	defer stdout.Close()
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		fmt.Printf("Bind StderrPipe fail, cmd(%s),args (%s),err %v", cn, strings.Join(cmdArgs, " "), err.Error())
+		fmt.Printf("Bind StderrPipe fail, cmd(%s),args (%s),err %v", cn, strings.Join(args, " "), err.Error())
 		return err
 	}
 	defer stderr.Close()
 	if err := cmd.Start(); err != nil {
-		fmt.Printf("Start fail, cmd(%s),args (%s),err %v", cn, strings.Join(cmdArgs, " "), err.Error())
+		fmt.Printf("Start fail, cmd(%s),args (%s),err %v", cn, strings.Join(args, " "), err.Error())
 		return err
 	}
 	//cmd.Stdout = scriptCmd.LogWriter
