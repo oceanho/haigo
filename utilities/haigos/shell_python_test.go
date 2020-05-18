@@ -14,8 +14,8 @@ func TestPythonScriptExecutor_Execute(t *testing.T) {
 	logWriter := io.MultiWriter(logFile)
 	bash := new(PythonScriptExecutor)
 	cmdLsRootDir := ScriptCommand{
-		RunAs: "root",
-		Cmd:   "import os; print(os.path)",
+		RunAs:     "root",
+		Cmd:       "import os; print(os.path)",
 		LogWriter: logWriter,
 		ErrWriter: logWriter,
 	}

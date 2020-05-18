@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/oceanho/haigo"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -45,12 +44,12 @@ func invokerTimeout(executor ScriptExecutor, scriptCmd ScriptCommand, duration t
 }
 
 func invoker(executor ScriptExecutor, scriptCmd ScriptCommand) error {
-	var args = make([]string,0)
+	var args = make([]string, 0)
 	for _, v := range executor.Args() {
 		args = append(args, v)
 	}
-	args = append(args,fmt.Sprintf("%s %s",
-		scriptCmd.Cmd,strings.Join(scriptCmd.Args," ")))
+	args = append(args, fmt.Sprintf("%s %s",
+		scriptCmd.Cmd, strings.Join(scriptCmd.Args, " ")))
 	cn := executor.Engine()
 	cmd := exec.Command(cn, args...)
 	if debugMode {
@@ -68,27 +67,32 @@ func invoker(executor ScriptExecutor, scriptCmd ScriptCommand) error {
 		return err
 	}
 	defer stdout.Close()
-
+	if scriptCmd.LogWriter != nil {
+		go output(stdout, scriptCmd.LogWriter)
+	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		fmt.Printf("Bind StderrPipe fail, cmd(%s),args (%s),err %v", cn, strings.Join(args, " "), err.Error())
 		return err
 	}
 	defer stderr.Close()
+	if scriptCmd.ErrWriter != nil {
+		go output(stderr, scriptCmd.ErrWriter)
+	}
 	if err := cmd.Start(); err != nil {
 		fmt.Printf("Start fail, cmd(%s),args (%s),err %v", cn, strings.Join(args, " "), err.Error())
 		return err
 	}
-	//cmd.Stdout = scriptCmd.LogWriter
-	//cmd.Stderr = scriptCmd.ErrWriter
-	// TODO(Ocean): should be considerate memory size Limit.
-	if scriptCmd.LogWriter != nil {
-		bytes, _ := ioutil.ReadAll(stdout)
-		scriptCmd.LogWriter.Write(bytes)
+	return cmd.Wait()
+}
+
+func output(reader io.ReadCloser, writer io.Writer) {
+	buf := make([]byte, 512)
+	for {
+		n, err := reader.Read(buf)
+		if err == io.EOF || n < 1 {
+			break
+		}
+		writer.Write(buf[0:n])
 	}
-	if scriptCmd.ErrWriter != nil {
-		bytes, _ := ioutil.ReadAll(stderr)
-		scriptCmd.ErrWriter.Write(bytes)
-	}
-	return nil
 }
