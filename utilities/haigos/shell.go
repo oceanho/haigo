@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -52,18 +53,18 @@ func invoker(executor ScriptExecutor, scriptCmd ScriptCommand) error {
 		scriptCmd.Cmd, strings.Join(scriptCmd.Args, " ")))
 	cn := executor.Engine()
 	cmd := exec.Command(cn, args...)
+	if scriptCmd.WorkDir != "" {
+		cmd.Dir = scriptCmd.WorkDir
+	}
 	if debugMode {
 		fmt.Printf("invoker command\n")
 		fmt.Printf("Cmd: %s\n", cn)
 		fmt.Printf("Args: %s\n", strings.Join(args, " "))
-		fmt.Printf("WorkDir: %s\n", scriptCmd.WorkDir)
-	}
-	if scriptCmd.WorkDir != "" {
-		cmd.Dir = scriptCmd.WorkDir
+		fmt.Printf("WorkDir: %s\n", cmd.Dir)
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		fmt.Printf("Bind StdoutPipe fail, cmd(%s),args (%s),err %v", cn, strings.Join(args, " "), err.Error())
+		fmt.Printf("get StdoutPipe fail, cmd(%s),args (%s),err %v", cn, strings.Join(args, " "), err.Error())
 		return err
 	}
 	defer stdout.Close()
@@ -72,7 +73,7 @@ func invoker(executor ScriptExecutor, scriptCmd ScriptCommand) error {
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		fmt.Printf("Bind StderrPipe fail, cmd(%s),args (%s),err %v", cn, strings.Join(args, " "), err.Error())
+		fmt.Printf("get StderrPipe fail, cmd(%s),args (%s),err %v", cn, strings.Join(args, " "), err.Error())
 		return err
 	}
 	defer stderr.Close()
@@ -80,17 +81,23 @@ func invoker(executor ScriptExecutor, scriptCmd ScriptCommand) error {
 		go output(stderr, scriptCmd.ErrWriter)
 	}
 	if err := cmd.Start(); err != nil {
-		fmt.Printf("Start fail, cmd(%s),args (%s),err %v", cn, strings.Join(args, " "), err.Error())
+		fmt.Printf("start fail, cmd(%s),args (%s),err %v", cn, strings.Join(args, " "), err.Error())
 		return err
 	}
-	return cmd.Wait()
+	err = cmd.Wait()
+	return err
 }
 
 func output(reader io.ReadCloser, writer io.Writer) {
+	//exit := false
+	//go func() {
+	//	wg.Wait()
+	//	exit = true
+	//}()
 	buf := make([]byte, 512)
 	for {
 		n, err := reader.Read(buf)
-		if err == io.EOF || n < 1 {
+		if err == io.EOF || n < 1 || exit {
 			break
 		}
 		writer.Write(buf[0:n])
