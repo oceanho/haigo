@@ -97,7 +97,7 @@ func output(reader io.ReadCloser, writer io.Writer) {
 	buf := make([]byte, 512)
 	for {
 		n, err := reader.Read(buf)
-		if err == io.EOF || n < 1 || exit {
+		if err == io.EOF || n < 1 {
 			break
 		}
 		writer.Write(buf[0:n])
